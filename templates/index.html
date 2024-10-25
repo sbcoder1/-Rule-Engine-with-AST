@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Engine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-width: 600px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Rule Engine</h1>
+
+<div>
+    <h2>Create Rule</h2>
+    <input type="text" id="createRuleInput" placeholder="Enter rule (e.g. age > 30 AND department = 'Sales')" />
+    <button id="createRuleButton">Create Rule</button>
+</div>
+
+<div>
+    <h2>Evaluate Rule</h2>
+    <input type="text" id="evaluateRuleInput" placeholder="Enter user data (e.g. {&quot;age&quot;: 32, &quot;department&quot;: &quot;Sales&quot;, &quot;salary&quot;: 60000})" />
+    <button id="evaluateRuleButton">Evaluate Rule</button>
+</div>
+
+<div id="response"></div>
+
+<script>
+    const createRuleButton = document.getElementById('createRuleButton');
+    const evaluateRuleButton = document.getElementById('evaluateRuleButton');
+    const responseElement = document.getElementById('response');
+
+    // Function to handle creating a rule
+    createRuleButton.addEventListener('click', async () => {
+        const ruleString = document.getElementById('createRuleInput').value;
+
+        try {
+            const response = await fetch('http://127.0.0.1:5000/create_rule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rule_string: ruleString })
+            });
+
+            const data = await response.json();
+            responseElement.style.display = 'block';
+            responseElement.innerText = JSON.stringify(data, null, 2); // Display response data
+
+            // Store the rule and metadata in local storage
+            let rules = JSON.parse(localStorage.getItem('rules')) || [];
+            rules.push({ 
+                rule: ruleString, 
+                message: data.message,
+                timestamp: new Date().toISOString() // Add timestamp as metadata
+            });
+            localStorage.setItem('rules', JSON.stringify(rules));
+
+        } catch (error) {
+            console.error('Error:', error);
+            responseElement.style.display = 'block';
+            responseElement.innerText = 'Error: ' + error.message;
+        }
+    });
+
+    // Function to handle evaluating a rule
+    evaluateRuleButton.addEventListener('click', async () => {
+        const userDataInput = document.getElementById('evaluateRuleInput').value;
+
+        // Parse user data input
+        let userData;
+        try {
+            userData = JSON.parse(userDataInput);
+        } catch (e) {
+            responseElement.style.display = 'block';
+            responseElement.innerText = 'Error: Invalid JSON format';
+            return;
+        }
+
+        // You can modify this part to fetch a specific rule from local storage if needed
+        const ast = {
+            "node_type": "logical_or",
+            "left": {
+                "node_type": "logical_and",
+                "left": {
+                    "node_type": "comparison",
+                    "attribute": "age",
+                    "value": 30
+                },
+                "right": {
+                    "node_type": "comparison",
+                    "attribute": "department",
+                    "value": "Sales"
+                }
+            },
+            "right": {
+                "node_type": "comparison",
+                "attribute": "salary",
+                "value": 50000
+            }
+        };
+
+        try {
+            const response = await fetch('http://127.0.0.1:5000/evaluate_rule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ast: ast, user_data: userData })
+            });
+
+            const data = await response.json();
+            responseElement.style.display = 'block';
+            responseElement.innerText = JSON.stringify(data, null, 2); // Display evaluation result
+
+        } catch (error) {
+            console.error('Error:', error);
+            responseElement.style.display = 'block';
+            responseElement.innerText = 'Error: ' + error.message;
+        }
+    });
+</script>
+</body>
+</html>
