@@ -26,7 +26,7 @@ def evaluate_ast(node, user_data):
             return attribute_value > node.value
         elif isinstance(node.value, str):
             return attribute_value == node.value  # For string comparison
-        return False  # Add more checks as needed
+        return False
     elif node.node_type == 'logical_and':
         return evaluate_ast(node.left, user_data) and evaluate_ast(node.right, user_data)
     elif node.node_type == 'logical_or':
@@ -57,17 +57,16 @@ def parse_rule_string(rule_string):
             if op in rule_string:
                 attr, op_value = rule_string.split(op)
                 attr = attr.strip()
-                op_value = op_value.strip().rstrip(')')  # Remove any trailing parentheses
+                op_value = op_value.strip().rstrip(')')
 
                 # Check if op_value is a number or a string and parse accordingly
                 if op_value.startswith("'") and op_value.endswith("'"):
-                    value = op_value[1:-1]  # Remove quotes for string values
+                    value = op_value[1:-1]
                 else:
-                    # Attempt to convert to int or keep as string
                     try:
-                        value = int(op_value)  # Convert to int for numerical comparisons
+                        value = int(op_value)
                     except ValueError:
-                        value = op_value  # Keep as string if conversion fails
+                        value = op_value
 
                 return ASTNode('comparison', attribute=attr, value=value)
 
@@ -81,44 +80,31 @@ def create_rule():
     
     try:
         ast = parse_rule_string(rule_string)
-        
-        # Store the rule in in-memory storage
-        rules_db.append({"rule_string": rule_string, "ast": ast})  # Store the rule string and AST
-        
+        rules_db.append({"rule_string": rule_string, "ast": ast})
         return jsonify({"message": "Rule created successfully!", "rule": rule_string}), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-# Route to evaluate a rule
+# Route to evaluate the most recent rule
 @app.route('/evaluate_rule', methods=['POST'])
 def evaluate_rule():
+    if not rules_db:  # Check if any rules exist
+        return jsonify({"error": "No rules have been created yet"}), 400
+
     data = request.get_json()
-    ast = data.get('ast')  # Assuming ast is passed in a suitable format
-    user_data = data.get('user_data', {})  # Fetch user data, default to empty dict
+    user_data = data.get('user_data', {})
 
-    # Ensure the AST is reconstructed correctly from its string representation
-    if ast is None or user_data is None:
-        return jsonify({"error": "AST or user data is missing"}), 400
-
-    # Reconstruct AST from the string if necessary
-    reconstructed_ast = reconstruct_ast(ast)
+    # Use the last created rule's AST for evaluation
+    latest_rule = rules_db[-1]
+    ast = latest_rule['ast']
     
-    result = evaluate_ast(reconstructed_ast, user_data)
+    result = evaluate_ast(ast, user_data)
     return jsonify({"result": result}), 200
-
-# Function to reconstruct AST from the provided representation
-def reconstruct_ast(ast):
-    if isinstance(ast, dict):
-        node_type = ast.get('node_type')
-        left = reconstruct_ast(ast.get('left')) if 'left' in ast else None
-        right = reconstruct_ast(ast.get('right')) if 'right' in ast else None
-        return ASTNode(node_type, left, right, ast.get('attribute'), ast.get('value'))
-    return None
 
 # Home route for testing
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index.html')  #  'index.html' 
 
 if __name__ == '__main__':
     app.run(debug=True)
