@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -118,7 +118,7 @@ def reconstruct_ast(ast):
 # Home route for testing
 @app.route('/')
 def home():
-    return "Welcome to the Rule Engine!"
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
